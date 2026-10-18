@@ -80,6 +80,39 @@ assert_stock_kernel_verifier() {
     fail "$capability verifier treated an alternative kernel as stock"
 }
 
+# Header changes the stock kernel makes to the private HDA headers compiled
+# into the audio module. BTF layout checks miss changed prototypes and inline
+# helpers, so each change is reviewed against the module's imports and
+# recorded here by the SHA-256 of the patch's sections for these headers.
+audio_private_headers='sound/hda/common/(hda_local|hda_auto_parser|hda_jack)[.]h|sound/hda/codecs/generic[.]h|sound/hda/codecs/side-codecs/hda_component[.]h'
+declare -A reviewed_stock_kernel_header_changes=(
+  # Adds hda_append_suffix, which the module does not use, and drops indexp
+  # from snd_hda_get_pin_label, which the module does not import.
+  [0510-sound-updates.patch]=1629eb1d7ff7cad48edcbd282e2394fa412bc33133ff25934db5be56b768fc88
+)
+
+test_stock_kernel_audio_header_changes_are_reviewed() {
+  local patch name changes digest
+
+  for patch in "$repo_root"/pkgbuilds/linux-omarchy/*.patch; do
+    name=${patch##*/}
+    changes=$(awk -v headers="^($audio_private_headers)$" '
+      /^diff / { keep = 0 }
+      /^\+\+\+ / { path = $2; sub(/^b\//, "", path); keep = (path ~ headers) }
+      keep
+    ' "$patch")
+    if [[ -z "$changes" ]]; then
+      [[ -z "${reviewed_stock_kernel_header_changes[$name]:-}" ]] ||
+        fail "$name no longer changes audio headers; drop its review entry"
+      continue
+    fi
+    digest=$(printf '%s' "$changes" | sha256sum)
+    digest=${digest%% *}
+    [[ "${reviewed_stock_kernel_header_changes[$name]:-}" == "$digest" ]] ||
+      fail "linux-omarchy $name changes private HDA headers used by the audio module; review it and record sha256 $digest"
+  done
+}
+
 test_camera_packages_are_versioned_and_pinned() {
   local driver firmware
 
@@ -100,7 +133,7 @@ test_camera_packages_are_versioned_and_pinned() {
 test_camera_firmware_builds_before_driver() {
   local plan order
 
-  plan=$("$repo_root/bin/repo" build --dry-run --package \
+  plan=$("$repo_root/bin/build" --dry-run --package \
     facetimehd-dkms facetimehd-firmware snd-hda-macbookpro-dkms)
   order=$(sed -n 's/^==> Build order: //p' <<< "$plan")
   [[ "$order" == *facetimehd-firmware*facetimehd-dkms* ]] ||
@@ -373,4 +406,5 @@ test_audio_package_pins_active_kernel_series
 test_audio_dkms_contract_is_offline_and_series_aware
 test_audio_package_installs_self_contained_dkms_source
 test_audio_verifier_fails_when_stock_kernel_module_is_missing
+test_stock_kernel_audio_header_changes_are_reviewed
 echo "PASS: MacBookPro13,1 package checks"

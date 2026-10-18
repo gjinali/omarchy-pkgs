@@ -3,8 +3,11 @@ set -euo pipefail
 
 if (( $# < 3 )); then
   echo "Usage: ${0##*/} AUDIO_PACKAGE CAMERA_PACKAGE LINUX_HEADERS_PACKAGE..." >&2
+  echo "Each headers package needs its kernel package beside it." >&2
   exit 2
 fi
+
+test_root=$(realpath "${BASH_SOURCE[0]%/*}")
 
 audio_package=$1
 camera_package=$2
@@ -82,6 +85,28 @@ for headers_package in "$@"; do
   bsdtar -xf "$headers_package" -C "$header_root"
   kernel_source="$header_root/usr/lib/modules/$kernelver/build"
 
+  # The kernel's own HDA modules carry the layouts the audio module must match;
+  # its stock CS8409 driver is the one the package replaces.
+  kernel_package="${headers_package%/*}/$(sed 's/-headers-/-/' <<< "${headers_package##*/}")"
+  [[ "$kernel_package" != "$headers_package" && -f "$kernel_package" ]] || {
+    echo "Kernel package not found beside $headers_package" >&2
+    exit 1
+  }
+  kernel_root="$work/kernel-$kernelver"
+  mkdir -p "$kernel_root"
+  bsdtar -xf "$kernel_package" -C "$kernel_root" \
+    "usr/lib/modules/$kernelver/kernel/sound/hda"
+  kernel_hda_modules=()
+  while IFS= read -r -d '' compressed; do
+    zstd -qd --rm "$compressed"
+    kernel_hda_modules+=("${compressed%.zst}")
+  done < <(find "$kernel_root" -name '*.ko.zst' \
+    ! -name 'snd-hda-codec-cs8409.ko.zst' -print0)
+  (( ${#kernel_hda_modules[@]} > 0 )) || {
+    echo "No HDA modules in $kernel_package" >&2
+    exit 1
+  }
+
   "${build_env[@]}" dkms build \
     -m snd_hda_macbookpro -v "$audio_version" -k "$kernelver" --arch x86_64 \
     --kernelsourcedir "$kernel_source" "${dkms_args[@]}"
@@ -115,7 +140,14 @@ for headers_package in "$@"; do
     exit 1
   }
 
+  layouts=$("$test_root/compare-hda-btf-layouts" "$kernel_source/vmlinux" \
+    "$audio_module" "${kernel_hda_modules[@]}") || {
+    echo "Prepared audio source does not match the HDA layouts of $kernelver" >&2
+    exit 1
+  }
+
   echo "PASS $kernelver"
+  echo "  audio  layouts: $layouts"
   echo "  audio  srcversion=$(modinfo -F srcversion "$audio_module") vermagic=$(modinfo -F vermagic "$audio_module")"
   echo "  camera srcversion=$(modinfo -F srcversion "$camera_module") vermagic=$(modinfo -F vermagic "$camera_module")"
 done
