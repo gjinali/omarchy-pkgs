@@ -1,0 +1,11 @@
+--- a/fthd_v4l2.c
++++ b/fthd_v4l2.c
+@@ -396,7 +396,7 @@
+ 	}
+ 
+ 	fmt->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+-	strncpy(fmt->description, desc, sizeof(fmt->description));
++	strscpy_pad(fmt->description, desc, sizeof(fmt->description));
+ 
+ 	return 0;
+ }

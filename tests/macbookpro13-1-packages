@@ -76,7 +76,7 @@ test_camera_packages_are_versioned_and_pinned() {
 
   driver=$(srcinfo_for facetimehd-dkms)
   assert_field "$driver" pkgver 0.7.0.2
-  assert_field "$driver" pkgrel 1.1
+  assert_field "$driver" pkgrel 1.2
   assert_field "$driver" depends dkms
   assert_field "$driver" depends facetimehd-firmware
   assert_pinned_sources "$driver" facetimehd-dkms
@@ -214,7 +214,7 @@ test_audio_package_pins_active_kernel_series() {
 
   srcinfo=$(srcinfo_for snd-hda-macbookpro-dkms)
   assert_field "$srcinfo" pkgver 0.1
-  assert_field "$srcinfo" pkgrel 1
+  assert_field "$srcinfo" pkgrel 2
   assert_field "$srcinfo" arch any
   assert_field "$srcinfo" depends dkms
   assert_field "$srcinfo" \
@@ -223,6 +223,8 @@ test_audio_package_pins_active_kernel_series() {
   assert_field "$srcinfo" \
     source \
     'linux-7.1.8.tar.xz::https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.1.8.tar.xz'
+  assert_field "$srcinfo" source 'linux-7.2.3.tar.xz::https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.3.tar.xz'
+  assert_field "$srcinfo" noextract linux-7.2.3.tar.xz
   assert_field "$srcinfo" noextract linux-7.1.8.tar.xz
   assert_field "$srcinfo" sha256sums 74320a51c1675d94533f75f97ace9a27c08ae8d7e0d67dd352a5f6b07293de81
   assert_field "$srcinfo" sha256sums ff01dcb449279d5b4cfccdb01fee639cf5ff1803f1749a77844dd33915422c49
@@ -280,9 +282,10 @@ test_audio_package_installs_self_contained_dkms_source() {
 
   work=$(mktemp -d)
   trap 'rm -rf "$work"' RETURN
-  mkdir -p "$work/src/prepared/7.1/hda" \
+  mkdir -p "$work/src/prepared/7.1/hda" "$work/src/prepared/7.2/hda" \
     "$work/src/snd_hda_macbookpro-cb27cc483f4fe98be03a4f4bef466c00aa7d244b"
   printf 'prepared source\n' > "$work/src/prepared/7.1/hda/series-marker"
+  printf 'prepared 7.2 source\n' > "$work/src/prepared/7.2/hda/series-marker"
   printf 'GPL fixture\n' > \
     "$work/src/snd_hda_macbookpro-cb27cc483f4fe98be03a4f4bef466c00aa7d244b/LICENSE"
   cp "$package_dir/Makefile" "$package_dir/dkms.conf" \
@@ -302,6 +305,12 @@ test_audio_package_installs_self_contained_dkms_source() {
   dkms_root="$work/pkg/usr/src/snd_hda_macbookpro-0.1"
   [[ -f "$dkms_root/series/7.1/hda/series-marker" ]] ||
     fail "audio package omitted its prepared 7.1 source"
+  "$dkms_root/prepare-dkms-build" 7.2.3-arch1-3
+  grep -Fxq 'prepared 7.2 source' "$dkms_root/build/hda/series-marker" ||
+    fail "audio package cannot select its prepared 7.2 source"
+  "$dkms_root/prepare-dkms-build" 7.1.9-arch1-2
+  grep -Fxq 'prepared source' "$dkms_root/build/hda/series-marker" ||
+    fail "audio package no longer supports the previous kernel series"
   [[ -x "$dkms_root/prepare-dkms-build" ]] ||
     fail "audio package omitted its DKMS series selector"
   [[ -f "$dkms_root/Makefile" ]] || fail "audio package omitted its build interface"
