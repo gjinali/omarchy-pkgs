@@ -10,12 +10,15 @@
 #    provenance only (empty when cut from a bare commit). omarchy and
 #    omarchy-settings must always carry identical _tag/_commit/pkgver/sha256sums.
 pkgname='omarchy'
-_tag=''
-_commit='f0020448ca87329199de7cb12f2015ebc4a3e5e7'
-pkgver=4.0.0
+_tag='v4.0.5'
+_commit='94a8fbc2d67eec5673c7f16b8c5e8a9c8452ffdc'
+pkgver=4.0.5
 pkgrel=1
 pkgdesc='Beautiful, modern, and opinionated Arch Linux by DHH'
-arch=('any')
+# The payload is architecture-independent, but the dependency set is not: the
+# boot stack differs per architecture (see depends_x86_64 / depends_aarch64),
+# and makepkg only honours arch-suffixed arrays on arch-specific packages.
+arch=('x86_64' 'aarch64')
 url='https://github.com/basecamp/omarchy'
 license=('MIT')
 conflicts=('omarchy-dev')
@@ -24,24 +27,14 @@ conflicts=('omarchy-dev')
 depends=(
   # Omarchy meta
   'omarchy-keyring'
+  # The theme intro videos ship on their own, so this package stays small.
+  'omarchy-themes-intros'
   # Exact-version pin: omarchy-settings-dev `provides=omarchy-settings`
   # (unversioned), and an unversioned dependency here would let the dev
   # package satisfy it, leaving a mixed dev/stable install. A versioned
   # dependency can only be satisfied by the real omarchy-settings built
   # from the same _commit, and forces the pair to upgrade together.
   "omarchy-settings=${pkgver}"
-
-  # Bootloader stack. Lives here rather than on omarchy-settings because
-  # omarchy-settings is also installed into the live ISO env (for plymouth
-  # / /etc/skel seeding), where the limine-mkinitcpio-hook would fail with
-  # 'Cannot detect an ESP path' inside the chroot. The omarchy-settings
-  # config drop-ins under /etc/mkinitcpio.conf.d/, /etc/limine-entry-tool.d/,
-  # and /etc/snapper/config-templates/ only do anything when these are
-  # installed alongside.
-  'limine'
-  'limine-mkinitcpio-hook'
-  'limine-snapper-sync'
-  'snapper'
 
   # Wayland / Hyprland core
   'hyprland'
@@ -69,6 +62,29 @@ depends=(
   'ttf-jetbrains-mono-nerd-basic'
 )
 
+# Bootloader stack. Lives here rather than on omarchy-settings because
+# omarchy-settings is also installed into the live ISO env (for plymouth
+# / /etc/skel seeding), where the limine-mkinitcpio-hook would fail with
+# 'Cannot detect an ESP path' inside the chroot. The omarchy-settings
+# config drop-ins under /etc/mkinitcpio.conf.d/, /etc/limine-entry-tool.d/,
+# and /etc/snapper/config-templates/ only do anything when these are
+# installed alongside.
+depends_x86_64=(
+  'limine'
+  'limine-mkinitcpio-hook'
+  'limine-snapper-sync'
+  'snapper'
+)
+
+# Apple Silicon boots through m1n1 + GRUB from the Asahi packages and keeps
+# Arch Linux ARM's kernel and boot layout, so the Limine/Snapper stack does not
+# apply. Only Apple Silicon's Broadcom Wi-Fi needs iwd, and omarchy-mac depends
+# on it. Elsewhere the package only renames the Wi-Fi interface to wlan0
+# (80-iwd.link), and a saved connection tied to the old name stops connecting.
+depends_aarch64=(
+  'networkmanager'
+)
+
 makedepends=(
   'git'
 )
@@ -80,7 +96,7 @@ if [[ -n "${OMARCHY_SRC:-}" ]]; then
   sha256sums=()
 else
   source=("omarchy::git+https://github.com/basecamp/omarchy.git#commit=${_commit}")
-  sha256sums=('ccf796be1df6a49cbf9f9c8d1a6883a3b49d8ec61c5207a1b4136880f37909cb')
+  sha256sums=('ce413d3fb5b90fab5b2e5cec66552a0562bc1fa3503e3b02e6c067c9a7a7a687')
 fi
 
 prepare() {
@@ -127,6 +143,9 @@ package() {
 
   # Theme bundles for theme switching.
   cp -a themes "$pkgdir/usr/share/omarchy/"
+  # Their intro videos ship from omarchy-themes-intros, into these same
+  # directories, so they are not downloaded again with every rebuild.
+  rm -rf "$pkgdir"/usr/share/omarchy/themes/*/backgrounds/intros
 
   # Versioned migrations runner reads from this tree.
   cp -a migrations "$pkgdir/usr/share/omarchy/"
