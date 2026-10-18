@@ -2,7 +2,7 @@
 
 pkgname=snd-hda-macbookpro-dkms
 pkgver=0.1
-pkgrel=2
+pkgrel=3
 pkgdesc='Offline DKMS source for MacBook Pro Cirrus CS8409 audio'
 arch=('any')
 url='https://github.com/davidjo/snd_hda_macbookpro'
@@ -32,7 +32,7 @@ sha256sums=(
   'ca66a6f43341911a7713ad5ad1fa5e96e56a968323d68b2d71b13fcb5a867eaa'
   'eec9ea7249cad7bf99dc67d711adcc11c5a32428cc4cdc8894a5629a5173e2c8'
   '5d0302489d2e9229172d5f9d62f9c53805da1474c9102e398bb974165b1a4bbc'
-  '62a9cd3dc0a55f782258a194ca9e3fa92e77da99bbe5b84cdcd7ef85ea707678'
+  '9552eab352cf934f460b1c33db8f2575b4471771f7ce71ae8cfed267f07d82b3'
   '4fe7ad5d2b23bb51167df94772c5ce43a7cb6e60a214726273483fbbbddc9b08'
 )
 noextract=('linux-7.1.8.tar.xz' 'linux-7.2.3.tar.xz')

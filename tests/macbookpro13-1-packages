@@ -43,9 +43,11 @@ prepare_verifier_fixture() {
 
   mkdir -p "$modules/7.1.8-arch1-3/updates/dkms" \
     "$modules/7.1.8-arch1-4" \
+    "$modules/7.2.8-9-omarchy" \
     "$modules/7.1.8-zen1-1-zen"
   printf 'linux\n' > "$modules/7.1.8-arch1-3/pkgbase"
   printf 'linux\n' > "$modules/7.1.8-arch1-4/pkgbase"
+  printf 'linux-omarchy\n' > "$modules/7.2.8-9-omarchy/pkgbase"
   printf 'linux-zen\n' > "$modules/7.1.8-zen1-1-zen/pkgbase"
   printf 'module fixture\n' > \
     "$modules/7.1.8-arch1-3/updates/dkms/$installed_module"
@@ -57,13 +59,20 @@ assert_stock_kernel_verifier() {
 
   printf 'usr/lib/modules/7.1.8-arch1-3/modules.order\n' | \
     "$verifier" --modules-root "$modules" ||
-    fail "$capability verifier rejected a present stock-kernel DKMS module"
+    fail "$capability verifier rejected a present fallback-kernel DKMS module"
 
   if output=$(printf 'usr/lib/modules/7.1.8-arch1-4/modules.order\n' | \
     "$verifier" --modules-root "$modules" 2>&1); then
+    fail "$capability verifier accepted a missing fallback-kernel DKMS module"
+  fi
+  grep -Fq "Missing $module_name for linux kernel 7.1.8-arch1-4" <<< "$output" ||
+    fail "$capability verifier did not identify the missing fallback-kernel module"
+
+  if output=$(printf 'usr/lib/modules/7.2.8-9-omarchy/modules.order\n' | \
+    "$verifier" --modules-root "$modules" 2>&1); then
     fail "$capability verifier accepted a missing stock-kernel DKMS module"
   fi
-  grep -Fq "Missing $module_name for stock kernel 7.1.8-arch1-4" <<< "$output" ||
+  grep -Fq "Missing $module_name for linux-omarchy kernel 7.2.8-9-omarchy" <<< "$output" ||
     fail "$capability verifier did not identify the missing stock-kernel module"
 
   printf 'usr/lib/modules/7.1.8-zen1-1-zen/modules.order\n' | \
@@ -75,8 +84,8 @@ test_camera_packages_are_versioned_and_pinned() {
   local driver firmware
 
   driver=$(srcinfo_for facetimehd-dkms)
-  assert_field "$driver" pkgver 0.7.0.2
-  assert_field "$driver" pkgrel 1.2
+  assert_field "$driver" pkgver 0.7.2
+  assert_field "$driver" pkgrel 1.1
   assert_field "$driver" depends dkms
   assert_field "$driver" depends facetimehd-firmware
   assert_pinned_sources "$driver" facetimehd-dkms
@@ -104,12 +113,12 @@ test_camera_package_installs_post_dkms_verifier() {
 
   work=$(mktemp -d)
   trap 'rm -rf "$work"' RETURN
-  mkdir -p "$work/src/facetimehd-0.7.0.2"
-  printf 'GPL fixture\n' > "$work/src/facetimehd-0.7.0.2/LICENSE"
-  printf 'PACKAGE_NAME="facetimehd"\nPACKAGE_VERSION="0.7.0.2"\n' > \
-    "$work/src/facetimehd-0.7.0.2/dkms.conf"
-  printf 'fixture\n' > "$work/src/facetimehd-0.7.0.2/Makefile"
-  printf 'fixture\n' > "$work/src/facetimehd-0.7.0.2/fthd_fixture.c"
+  mkdir -p "$work/src/facetimehd-0.7.2"
+  printf 'GPL fixture\n' > "$work/src/facetimehd-0.7.2/LICENSE"
+  printf 'PACKAGE_NAME="facetimehd"\nPACKAGE_VERSION="0.7.2"\n' > \
+    "$work/src/facetimehd-0.7.2/dkms.conf"
+  printf 'fixture\n' > "$work/src/facetimehd-0.7.2/Makefile"
+  printf 'fixture\n' > "$work/src/facetimehd-0.7.2/fthd_fixture.c"
   for package_file in verify-kernel-modules 75-facetimehd-verify.hook; do
     [[ -f "$package_dir/$package_file" ]] && cp "$package_dir/$package_file" "$work/src/"
   done
@@ -144,11 +153,13 @@ test_camera_verifier_fails_when_stock_kernel_module_is_missing() {
   prepare_verifier_fixture "$modules" facetimehd.ko.xz
   assert_stock_kernel_verifier "$verifier" "$modules" facetimehd camera
 
-  if output=$(printf 'usr/src/facetimehd-0.7.0.2/dkms.conf\n' | \
+  if output=$(printf 'usr/src/facetimehd-0.7.2/dkms.conf\n' | \
     "$verifier" --modules-root "$modules" 2>&1); then
     fail "camera package upgrade ignored a stock kernel without its module"
   fi
-  grep -Fq 'Missing facetimehd for stock kernel 7.1.8-arch1-4' <<< "$output" ||
+  grep -Fq 'Missing facetimehd for linux kernel 7.1.8-arch1-4' <<< "$output" ||
+    fail "camera package upgrade did not identify an unbuilt fallback kernel"
+  grep -Fq 'Missing facetimehd for linux-omarchy kernel 7.2.8-9-omarchy' <<< "$output" ||
     fail "camera package upgrade did not identify an unbuilt stock kernel"
 }
 
@@ -214,7 +225,7 @@ test_audio_package_pins_active_kernel_series() {
 
   srcinfo=$(srcinfo_for snd-hda-macbookpro-dkms)
   assert_field "$srcinfo" pkgver 0.1
-  assert_field "$srcinfo" pkgrel 2
+  assert_field "$srcinfo" pkgrel 3
   assert_field "$srcinfo" arch any
   assert_field "$srcinfo" depends dkms
   assert_field "$srcinfo" \
@@ -345,9 +356,11 @@ test_audio_verifier_fails_when_stock_kernel_module_is_missing() {
   printf 'linux\n' > "$modules/7.1.9-arch1-1/pkgbase"
   if output=$(printf 'usr/src/snd_hda_macbookpro-0.1/dkms.conf\n' | \
     "$verifier" --modules-root "$modules" 2>&1); then
-    fail "package upgrade ignored a stock kernel without headers or a DKMS module"
+    fail "package upgrade ignored a kernel without headers or a DKMS module"
   fi
-  grep -Fq 'Missing snd-hda-codec-cs8409 for stock kernel 7.1.9-arch1-1' <<< "$output" ||
+  grep -Fq 'Missing snd-hda-codec-cs8409 for linux kernel 7.1.9-arch1-1' <<< "$output" ||
+    fail "package upgrade did not identify an unbuilt fallback kernel"
+  grep -Fq 'Missing snd-hda-codec-cs8409 for linux-omarchy kernel 7.2.8-9-omarchy' <<< "$output" ||
     fail "package upgrade did not identify an unbuilt stock kernel"
 }
 

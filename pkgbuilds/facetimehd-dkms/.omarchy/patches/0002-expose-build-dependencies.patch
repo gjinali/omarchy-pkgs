@@ -1,8 +1,8 @@
 diff --git a/PKGBUILD b/PKGBUILD
-index f149827..1ca9c20 100644
+index 4f343ec..9f8b2d3 100644
 --- a/PKGBUILD
 +++ b/PKGBUILD
-@@ -13,6 +13,10 @@
+@@ -13,6 +13,10 @@ url='https://github.com/patjak/facetimehd'
  license=('GPL-2.0-only')
  arch=('any')
  
@@ -13,7 +13,7 @@ index f149827..1ca9c20 100644
  optdepends=('facetimehd-data: Sensor calibration data')
  
  provides=('bcwc-pcie' 'bcwc-pcie-dkms')
-@@ -28,11 +32,6 @@
+@@ -28,11 +32,6 @@ prepare() {
  }
  
  package() {

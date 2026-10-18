@@ -1,8 +1,9 @@
 diff --git a/PKGBUILD b/PKGBUILD
-index d560ca4..f149827 100644
+index a3b2cb4..4f343ec 100644
 --- a/PKGBUILD
 +++ b/PKGBUILD
-@@ -13,14 +13,13 @@ license=('GPL-2.0-only')
+@@ -13,15 +13,14 @@ url='https://github.com/patjak/facetimehd'
+ license=('GPL-2.0-only')
  arch=('any')
  
 -makedepends=('git')
@@ -13,10 +14,10 @@ index d560ca4..f149827 100644
  
 -_pkgsrc="$_pkgname"
 -source=("$_pkgsrc"::"git+https://github.com/patjak/facetimehd.git#tag=$pkgver")
--sha256sums=('e25dbbf89f2145c8a61ee53a594271ef5bb3a6b8b006e70c637996240fffc219')
+-sha256sums=('43344654bcdaa7de115f5393bc737117e8fda6665eef9cdcabd1dceaa1687366')
 +_pkgsrc="facetimehd-$pkgver"
 +source=("$_pkgsrc.tar.gz::https://github.com/patjak/facetimehd/archive/refs/tags/$pkgver.tar.gz")
-+sha256sums=('3bf7cdfa62c57258a1f6188caf10e767d9315574deefaf246d4725a17547191a')
++sha256sums=('ed4ca0a1388451c356c713957a9a597a5d625956d41a0dbcd618d04e12675a86')
  
  prepare() {
    # deprecated

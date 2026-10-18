@@ -6,8 +6,8 @@
 
 _pkgname="facetimehd-dkms"
 pkgname="$_pkgname"
-pkgver=0.7.0.2
-pkgrel=1.2
+pkgver=0.7.2
+pkgrel=1.1
 pkgdesc='Reverse engineered Linux driver for the FacetimeHD (Broadcom 1570) PCIe webcam'
 url='https://github.com/patjak/facetimehd'
 license=('GPL-2.0-only')
@@ -27,17 +27,14 @@ source=(
   "$_pkgsrc.tar.gz::https://github.com/patjak/facetimehd/archive/refs/tags/$pkgver.tar.gz"
   'verify-kernel-modules'
   '75-facetimehd-verify.hook'
-  'linux-7.2-string-copy.patch'
 )
 sha256sums=(
-  '3bf7cdfa62c57258a1f6188caf10e767d9315574deefaf246d4725a17547191a'
-  '072a14aea0ccf57346a82cd380db268186970853877a3add8538fe7ab8faff1b'
+  'ed4ca0a1388451c356c713957a9a597a5d625956d41a0dbcd618d04e12675a86'
+  'ceb1e1bcc96c5c659433672705600e1761da21cf966a857e755ee264a3bb67b5'
   'ed9e3154fe7381086f4f5b6e8469b22aa94603161ff48215b335a84eb07f2d2f'
-  'd640317c57ae0389be212382175bc1599b6e99a2a66e4daf4fba0269bdef8200'
 )
 
 prepare() {
-  patch -d "$_pkgsrc" -p1 < "$srcdir/linux-7.2-string-copy.patch"
   # deprecated
   sed -E -e '/^(CLEAN|MODULES_CONF)/d' -i "$_pkgsrc/dkms.conf"
 }
